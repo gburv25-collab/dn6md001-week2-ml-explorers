@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Linear Regression Interactive Explainer</title>
+<style>
+:root{
+  --navy:#10233f;--ink:#162033;--muted:#64748b;--bg:#f7fafc;--panel:#fff;
+  --line:#d9e2ec;--blue:#2f80ed;--purple:#7b61ff;--teal:#16a085;--red:#d84a4a;--green:#2e9d62;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:1180px;margin:auto;padding:24px}
+.hero{background:var(--navy);color:white;border-radius:22px;padding:28px 32px;margin-bottom:20px}
+.eyebrow{font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:#9fd2ff;font-weight:700;margin-bottom:8px}
+h1{margin:0 0 8px;font-size:38px}.hero p{margin:0;color:#dce8f5;font-size:18px;line-height:1.5}
+.grid{display:grid;grid-template-columns:2fr 1fr;gap:20px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 8px 30px rgba(16,35,63,.06)}
+canvas{width:100%;height:520px;display:block;border-radius:16px;background:#fbfdff;border:1px solid #e6edf5}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
+button,input[type=range]{border:0;border-radius:10px;padding:11px 14px;font-size:15px}
+button{cursor:pointer;background:var(--navy);color:white;font-weight:700}.secondary{background:#eaf2fb;color:var(--navy)}.accent{background:var(--blue)}
+label{font-size:14px;font-weight:700;color:var(--muted)}
+.stage{border-left:5px solid var(--blue);background:#eef6ff;padding:14px 16px;border-radius:12px;margin-bottom:16px}
+.stage h2{margin:0 0 6px;font-size:21px}.stage p{margin:0;line-height:1.45}
+.steps{display:grid;gap:10px;margin:14px 0}.step{padding:12px 14px;border-radius:11px;border:1px solid var(--line);background:#fff;font-size:15px}.step.active{border-color:var(--blue);background:#eef6ff;font-weight:700}
+.think{margin-top:18px;background:#f3f0ff;border:1px solid #ded6ff;border-radius:14px;padding:16px}.think strong{color:#5b45c8}.question{margin-top:10px;font-size:16px;line-height:1.5}
+textarea{width:100%;min-height:92px;border:1px solid #ccd8e5;border-radius:10px;padding:10px;font-size:15px;margin-top:8px}
+.feedback{display:none;margin-top:10px;padding:11px;border-radius:10px;background:#edf9f2;border:1px solid #bfe8cd;line-height:1.45}
+.info{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.mini{background:#f7fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
+.mini h3{margin:0 0 6px;font-size:14px;text-transform:uppercase;color:var(--muted)}.big{font-size:28px;font-weight:700}
+.small,.helper,.footer{color:var(--muted);font-size:13px;line-height:1.4}
+.sliderbox{margin-top:12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px}
+.sliderrow{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.badge{display:inline-block;background:#f2f6fa;border-radius:999px;padding:6px 10px;font-size:13px;color:var(--muted)}
+@media(max-width:900px){.grid{grid-template-columns:1fr}h1{font-size:30px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="hero">
+  <div class="eyebrow">Week 2 • Machine Learning Approaches</div>
+  <h1>Linear Regression: Predict a Continuous Value</h1>
+  <p>See how linear regression uses labelled numerical targets to fit a line, estimate a continuous outcome, and measure prediction error.</p>
+</section>
+
+<div class="grid">
+<section class="panel">
+  <canvas id="c" width="760" height="520"></canvas>
+
+  <div class="controls">
+    <button class="secondary" id="reset">Reset</button>
+    <button class="accent" id="next">Next step</button>
+  </div>
+
+  <div class="sliderbox">
+    <div class="sliderrow">
+      <label for="xVal">New feature value</label>
+      <span class="badge" id="xBadge">6.0</span>
+    </div>
+    <input type="range" id="xVal" min="1" max="10" step="0.1" value="6" style="width:100%;margin-top:8px">
+    <div class="helper">Once the fitted line is visible, move the slider to see the predicted numerical target.</div>
+  </div>
+
+  <div class="info">
+    <div class="mini">
+      <h3>Prediction</h3>
+      <div class="big" id="predBox">—</div>
+      <div class="small">The estimated continuous target value for the selected feature value.</div>
+    </div>
+    <div class="mini">
+      <h3>Mean squared error</h3>
+      <div class="big" id="mseBox">—</div>
+      <div class="small">A summary of how far predictions are from the observed targets.</div>
+    </div>
+  </div>
+</section>
+
+<aside class="panel">
+  <div class="stage">
+    <h2 id="title"></h2>
+    <p id="desc"></p>
+  </div>
+
+  <div class="steps">
+    <div class="step" id="s0">1. Labelled numerical targets</div>
+    <div class="step" id="s1">2. Consider a candidate line</div>
+    <div class="step" id="s2">3. Fit the best line</div>
+    <div class="step" id="s3">4. Predict a new value</div>
+    <div class="step" id="s4">5. Inspect residuals and limits</div>
+  </div>
+
+  <div class="think">
+    <strong>Pause & think</strong>
+    <div class="question" id="q"></div>
+    <textarea placeholder="Type your answer here..."></textarea>
+    <button class="secondary" id="reveal" style="margin-top:8px">Reveal guidance</button>
+    <div class="feedback" id="fb"></div>
+  </div>
+
+  <div class="footer">DN6MD001 • Artificial Intelligence and Machine Learning</div>
+</aside>
+</div>
+</div>
+
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d');
+const NAVY='#10233f',BLUE='#2f80ed',PURPLE='#7b61ff',RED='#d84a4a',GREEN='#2e9d62',GREY='#94a3b8',GRID='#dce6f2';
+let phase=0;
+
+const data=[
+  [1.2,20],[1.8,27],[2.4,28],[3.0,36],[3.7,41],[4.2,44],[4.8,52],
+  [5.4,54],[6.0,61],[6.5,64],[7.2,70],[7.8,73],[8.4,81],[9.2,86],[9.7,91]
+].map(d=>({x:d[0],y:d[1]}));
+
+function fit(){
+  const n=data.length;
+  const sx=data.reduce((s,d)=>s+d.x,0), sy=data.reduce((s,d)=>s+d.y,0);
+  const mx=sx/n,my=sy/n;
+  let num=0,den=0;
+  data.forEach(d=>{num+=(d.x-mx)*(d.y-my);den+=(d.x-mx)*(d.x-mx)});
+  const m=num/den,b=my-m*mx;
+  const mse=data.reduce((s,d)=>s+(d.y-(m*d.x+b))**2,0)/n;
+  return {m,b,mse};
+}
+const model=fit();
+const candidate={m:6.3,b:11};
+
+function sx(v){return 70+(v-1)/9*640}
+function sy(v){return 455-(v-15)/80*370}
+function invX(px){return 1+(px-70)/640*9}
+
+function predict(x){return model.m*x+model.b}
+
+function reset(){
+  phase=0;
+  document.getElementById('xVal').value='6';
+  update();
+  draw();
+}
+
+function next(){if(phase<4)phase++;update();draw()}
+
+document.getElementById('reset').onclick=reset;
+document.getElementById('next').onclick=next;
+document.getElementById('reveal').onclick=()=>fb.style.display='block';
+document.getElementById('xVal').addEventListener('input',()=>{updateReadout();draw()});
+
+function update(){
+  const T=[
+    '1. Start with labelled numerical outcomes',
+    '2. Consider a possible straight-line relationship',
+    '3. Fit the line that minimises prediction error',
+    '4. Use the fitted line to predict a new value',
+    '5. Residuals show where the model is wrong'
+  ];
+  const D=[
+    'Linear regression is supervised learning because every training observation has a known numerical target.',
+    'A straight line represents one possible relationship between the feature and the target. Different lines produce different prediction errors.',
+    'The fitted line is chosen to make the squared prediction errors as small as possible across the training observations.',
+    'For a new feature value, the model uses the fitted line to estimate a continuous numerical target.',
+    'The vertical gap between an observed target and the line is a residual. Patterns in residuals can suggest that a simple linear relationship is inadequate.'
+  ];
+  const Q=[
+    'Why is this a regression problem rather than a classification problem?',
+    'Why might one candidate line be better than another?',
+    'Why do we consider error across all observations rather than fitting one point perfectly?',
+    'What does the prediction represent when the new feature value is 6.0?',
+    'What would concern you if the residuals showed a clear curved pattern rather than random scatter?'
+  ];
+  const F=[
+    'The target is a continuous numerical value, so the task is to estimate a number rather than choose a class label.',
+    'A better line produces smaller overall prediction errors across the training data.',
+    'A useful model should represent the overall relationship and generalise to new cases, not merely pass through one training observation.',
+    'It is the model’s estimated target value for a case whose feature value is 6.0, based on the learned linear relationship.',
+    'A curved residual pattern suggests that the relationship may not be well represented by a straight line, so a different model or transformation may be more appropriate.'
+  ];
+  title.textContent=T[phase];desc.textContent=D[phase];q.textContent=Q[phase];fb.textContent=F[phase];fb.style.display='none';
+  for(let i=0;i<5;i++)document.getElementById('s'+i).classList.toggle('active',i===phase);
+  updateReadout();
+}
+
+function updateReadout(){
+  const xv=parseFloat(document.getElementById('xVal').value);
+  xBadge.textContent=xv.toFixed(1);
+  if(phase>=3){
+    predBox.textContent=predict(xv).toFixed(1);
+    predBox.style.color=BLUE;
+  }else{
+    predBox.textContent='—';predBox.style.color=NAVY;
+  }
+  if(phase>=2){
+    mseBox.textContent=model.mse.toFixed(1);
+    mseBox.style.color=PURPLE;
+  }else{
+    mseBox.textContent='—';mseBox.style.color=NAVY;
+  }
+}
+
+function grid(){
+  ctx.strokeStyle=GRID;ctx.lineWidth=1;
+  for(let i=0;i<=9;i++){
+    const px=70+i*(640/9);ctx.beginPath();ctx.moveTo(px,55);ctx.lineTo(px,455);ctx.stroke()
+  }
+  for(let j=0;j<=8;j++){
+    const py=455-j*(370/8);ctx.beginPath();ctx.moveTo(70,py);ctx.lineTo(710,py);ctx.stroke()
+  }
+}
+function axes(){
+  ctx.strokeStyle=GREY;ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(70,455);ctx.lineTo(710,455);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(70,455);ctx.lineTo(70,55);ctx.stroke();
+  ctx.fillStyle='#52606d';ctx.font='15px Arial';ctx.textAlign='center';
+  ctx.fillText('Feature value',390,495);
+  ctx.save();ctx.translate(25,280);ctx.rotate(-Math.PI/2);ctx.fillText('Target value',0,0);ctx.restore();
+}
+function points(){
+  data.forEach(d=>{
+    ctx.fillStyle=BLUE;ctx.beginPath();ctx.arc(sx(d.x),sy(d.y),7,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='white';ctx.lineWidth=2;ctx.stroke();
+  });
+}
+function line(m,b,color,width=3,dashed=false){
+  ctx.save();ctx.strokeStyle=color;ctx.lineWidth=width;if(dashed)ctx.setLineDash([8,6]);
+  ctx.beginPath();ctx.moveTo(sx(1),sy(m*1+b));ctx.lineTo(sx(10),sy(m*10+b));ctx.stroke();ctx.restore();
+}
+function residuals(){
+  if(phase<4)return;
+  ctx.save();ctx.strokeStyle=RED;ctx.lineWidth=2;ctx.setLineDash([4,4]);
+  data.forEach(d=>{
+    const py=sy(d.y),fitY=sy(predict(d.x)),px=sx(d.x);
+    ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px,fitY);ctx.stroke();
+  });
+  ctx.restore();
+}
+function newPrediction(){
+  if(phase<3)return;
+  const xv=parseFloat(document.getElementById('xVal').value),yv=predict(xv),px=sx(xv),py=sy(yv);
+  ctx.save();
+  ctx.strokeStyle='#111827';ctx.lineWidth=2;ctx.setLineDash([6,5]);
+  ctx.beginPath();ctx.moveTo(px,455);ctx.lineTo(px,py);ctx.lineTo(70,py);ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle=PURPLE;ctx.beginPath();ctx.arc(px,py,10,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='white';ctx.lineWidth=3;ctx.stroke();
+  ctx.fillStyle=NAVY;ctx.font='bold 14px Arial';ctx.textAlign='left';
+  ctx.fillText(`prediction = ${yv.toFixed(1)}`,px+14,py-10);
+}
+function labels(){
+  ctx.fillStyle=NAVY;ctx.font='bold 15px Arial';ctx.textAlign='left';
+  if(phase===0)ctx.fillText('Known numerical targets',80,28);
+  if(phase===1)ctx.fillText('Candidate line',80,28);
+  if(phase===2)ctx.fillText('Best-fit line',80,28);
+  if(phase===3)ctx.fillText('Move the slider to predict a new value',80,28);
+  if(phase===4)ctx.fillText('Residuals = observed value − predicted value',80,28);
+}
+function draw(){
+  ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle='#fbfdff';ctx.fillRect(0,0,c.width,c.height);
+  grid();axes();points();
+  if(phase===1)line(candidate.m,candidate.b,'#94a3b8',3,true);
+  if(phase>=2)line(model.m,model.b,BLUE,4,false);
+  residuals();newPrediction();labels();
+}
+reset();
+</script>
+</body>
+</html>

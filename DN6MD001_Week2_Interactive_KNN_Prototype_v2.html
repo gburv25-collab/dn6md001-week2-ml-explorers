@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KNN Interactive Explainer</title>
+<style>
+:root{--navy:#10233f;--ink:#162033;--muted:#64748b;--bg:#f7fafc;--line:#d9e2ec;--blue:#2f80ed;--purple:#7b61ff}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:1180px;margin:auto;padding:24px}.hero{background:var(--navy);color:white;border-radius:22px;padding:28px 32px;margin-bottom:20px}
+.eyebrow{font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:#9fd2ff;font-weight:700;margin-bottom:8px}
+h1{margin:0 0 8px;font-size:38px}.hero p{margin:0;color:#dce8f5;font-size:18px;line-height:1.5}
+.grid{display:grid;grid-template-columns:2fr 1fr;gap:20px}.panel{background:white;border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 8px 30px rgba(16,35,63,.06)}
+canvas{width:100%;height:520px;display:block;border-radius:16px;background:#fbfdff;border:1px solid #e6edf5;cursor:crosshair}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}button,select{border:0;border-radius:10px;padding:11px 14px;font-size:15px}
+button{cursor:pointer;background:var(--navy);color:white;font-weight:700}.secondary{background:#eaf2fb;color:var(--navy)}.accent{background:var(--blue)}
+label{font-size:14px;font-weight:700;color:var(--muted)}select{background:#eef4f9;color:var(--ink);font-weight:700}
+.stage{border-left:5px solid var(--blue);background:#eef6ff;padding:14px 16px;border-radius:12px;margin-bottom:16px}.stage h2{margin:0 0 6px;font-size:21px}.stage p{margin:0;line-height:1.45}
+.steps{display:grid;gap:10px;margin:14px 0}.step{padding:12px 14px;border-radius:11px;border:1px solid var(--line)}.step.active{border-color:var(--blue);background:#eef6ff;font-weight:700}
+.think{margin-top:18px;background:#f3f0ff;border:1px solid #ded6ff;border-radius:14px;padding:16px}.think strong{color:#5b45c8}.question{margin-top:10px;line-height:1.5}
+textarea{width:100%;min-height:92px;border:1px solid #ccd8e5;border-radius:10px;padding:10px;font-size:15px;margin-top:8px}.feedback{display:none;margin-top:10px;padding:11px;border-radius:10px;background:#edf9f2;border:1px solid #bfe8cd;line-height:1.45}
+.info{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.mini{background:#f7fafc;border:1px solid var(--line);border-radius:12px;padding:12px}.mini h3{margin:0 0 6px;font-size:14px;text-transform:uppercase;color:var(--muted)}.big{font-size:28px;font-weight:700}.small,.helper,.footer{color:var(--muted);font-size:13px;line-height:1.4}
+.legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.badge{display:inline-flex;align-items:center;gap:6px;background:#f2f6fa;border-radius:999px;padding:6px 10px;font-size:13px;color:var(--muted)}.dot{width:10px;height:10px;border-radius:50%}
+@media(max-width:900px){.grid{grid-template-columns:1fr}h1{font-size:30px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="hero"><div class="eyebrow">Week 2 • Machine Learning Approaches</div><h1>K-Nearest Neighbours: Predict from Nearby Examples</h1><p>Place a new sample, choose K, and see how KNN uses nearby <b>labelled</b> examples to make a supervised prediction.</p></section>
+<div class="grid">
+<section class="panel">
+<canvas id="c" width="760" height="520"></canvas>
+<div class="controls"><label for="k">Choose K</label><select id="k"><option>1</option><option selected>3</option><option>5</option><option>7</option></select><button class="secondary" id="reset">Reset</button><button class="accent" id="next">Next step</button></div>
+<div class="legend"><span class="badge"><span class="dot" style="background:#2f80ed"></span>Class A</span><span class="badge"><span class="dot" style="background:#7b61ff"></span>Class B</span><span class="badge">★ New sample</span><span class="badge">○ Nearest neighbours</span></div>
+<div class="info"><div class="mini"><h3>Nearest neighbours</h3><div class="big" id="counts">—</div><div class="small">The K closest labelled examples.</div></div><div class="mini"><h3>Predicted class</h3><div class="big" id="pred">—</div><div class="small">For classification, the nearby labels vote.</div></div></div>
+<div class="helper">After step 2, click in the chart to place a new sample. Then try changing K. At the distance stage, only the 12 shortest distance lines are drawn to keep the visual readable; the neighbour calculation still considers all stored training examples.</div>
+</section>
+<aside class="panel">
+<div class="stage"><h2 id="title"></h2><p id="desc"></p></div>
+<div class="steps"><div class="step" id="s0">1. Labelled training data</div><div class="step" id="s1">2. Place a new sample</div><div class="step" id="s2">3. Measure distance</div><div class="step" id="s3">4. Select nearest K</div><div class="step" id="s4">5. Vote and predict</div></div>
+<div class="think"><strong>Pause & think</strong><div class="question" id="q"></div><textarea placeholder="Type your answer here..."></textarea><button class="secondary" id="reveal" style="margin-top:8px">Reveal guidance</button><div class="feedback" id="fb"></div></div>
+<div class="footer">DN6MD001 • Artificial Intelligence and Machine Learning</div>
+</aside>
+</div></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),BLUE='#2f80ed',PURPLE='#7b61ff',NAVY='#10233f',GREY='#94a3b8',GRID='#dce6f2';
+const titleEl=document.getElementById('title');
+const descEl=document.getElementById('desc');
+const qEl=document.getElementById('q');
+const fbEl=document.getElementById('fb');
+const countsEl=document.getElementById('counts');
+const predEl=document.getElementById('pred');
+let phase=0,sample=null,near=[];
+const pts=[
+[125,355,0],[155,325,0],[175,390,0],[210,345,0],[240,375,0],[255,300,0],[285,340,0],[315,295,0],[345,325,0],[370,275,0],[395,315,0],[390,365,0],
+[345,235,1],[420,260,1],[450,300,1],[470,235,1],[500,280,1],[535,215,1],[555,255,1],[590,195,1],[610,235,1],[645,175,1],[670,210,1],[700,155,1]
+].map((p,i)=>({x:p[0],y:p[1],c:p[2],i}));
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),K=()=>+document.getElementById('k').value;
+function find(){if(!sample){near=[];return}near=pts.map(p=>({p,d:dist(sample,p)})).sort((a,b)=>a.d-b.d).slice(0,K())}
+function vote(){let a=near.filter(n=>n.p.c===0).length,b=near.filter(n=>n.p.c===1).length;return b>a?1:0}
+function reset(){phase=0;sample=null;near=[];document.getElementById('k').value='3';update();draw()}
+function next(){if(phase<4)phase++;if(sample&&phase>=2)find();update();draw()}
+function update(){
+const T=['1. Start with labelled examples','2. Place a new sample','3. Measure distance to stored examples','4. Select the nearest K neighbours','5. Let the neighbours vote'];
+const D=['KNN is supervised learning because the stored training examples already have known target values.','A new observation arrives without a known target. The model must predict it from nearby labelled examples.','The algorithm compares the new observation with all stored training examples using distance in feature space. For readability, the visual shows only the 12 shortest distance lines.','K controls how many nearby labelled examples are used. Small K is more local; larger K smooths the decision.','For classification, the nearest labels vote. For regression, KNN can average the neighbours’ numerical target values.'];
+const Q=['What makes KNN supervised rather than unsupervised?','What information must the new sample contain before KNN can compare it with training examples?','Why might feature scaling matter when KNN uses distance?','What could happen if K is too small? What could happen if K is too large?','Why is KNN fundamentally different from K-Means even though both use the letter K?'];
+const F=['The stored examples already have known target values or class labels. KNN uses those labelled cases to predict a new case.','The new sample needs values for the same input features used by the stored examples.','A feature with a much larger numerical scale can dominate the distance calculation, so scaling can matter.','A very small K can be sensitive to noise. A very large K can smooth away useful local structure and favour the majority class.','KNN is supervised and predicts using labelled neighbours. K-Means is unsupervised and creates clusters from unlabelled data.'];
+titleEl.textContent=T[phase];descEl.textContent=D[phase];qEl.textContent=Q[phase];fbEl.textContent=F[phase];fbEl.style.display='none';
+for(let i=0;i<5;i++)document.getElementById('s'+i).classList.toggle('active',i===phase);
+readout()
+}
+function readout(){if(!sample||phase<3){countsEl.textContent='—';predEl.textContent='—';predEl.style.color=NAVY;return}find();let a=near.filter(n=>n.p.c===0).length,b=near.filter(n=>n.p.c===1).length;countsEl.textContent=`A: ${a} | B: ${b}`;if(phase>=4){let v=vote();predEl.textContent=v?'Class B':'Class A';predEl.style.color=v?PURPLE:BLUE}else{predEl.textContent='—';predEl.style.color=NAVY}}
+function axes(){x.strokeStyle=GREY;x.lineWidth=1.5;x.beginPath();x.moveTo(60,455);x.lineTo(730,455);x.stroke();x.beginPath();x.moveTo(60,455);x.lineTo(60,55);x.stroke();x.fillStyle='#52606d';x.font='15px Arial';x.fillText('Feature 1',355,493);x.save();x.translate(23,285);x.rotate(-Math.PI/2);x.fillText('Feature 2',0,0);x.restore()}
+function grid(){x.strokeStyle=GRID;x.lineWidth=1;for(let a=130;a<=690;a+=70){x.beginPath();x.moveTo(a,55);x.lineTo(a,455);x.stroke()}for(let b=105;b<=435;b+=55){x.beginPath();x.moveTo(60,b);x.lineTo(730,b);x.stroke()}}
+function points(){pts.forEach(p=>{x.fillStyle=p.c?PURPLE:BLUE;x.beginPath();x.arc(p.x,p.y,8,0,Math.PI*2);x.fill();x.strokeStyle='white';x.lineWidth=2;x.stroke();if(phase>=3&&near.some(n=>n.p.i===p.i)){x.strokeStyle='#111827';x.lineWidth=3;x.beginPath();x.arc(p.x,p.y,14,0,Math.PI*2);x.stroke()}})}
+function lines(){if(!sample||phase<2)return;let r=pts.map(p=>({p,d:dist(sample,p)})).sort((a,b)=>a.d-b.d),show=phase===2?r.slice(0,12):near;x.save();x.setLineDash([5,5]);show.forEach(n=>{x.strokeStyle=phase===2?'rgba(100,116,139,.5)':'rgba(16,35,63,.55)';x.beginPath();x.moveTo(sample.x,sample.y);x.lineTo(n.p.x,n.p.y);x.stroke()});x.restore()}
+function radius(){if(!sample||phase<3||!near.length)return;let d=Math.max(...near.map(n=>n.d));x.strokeStyle='rgba(16,35,63,.45)';x.fillStyle='rgba(47,128,237,.04)';x.lineWidth=2;x.setLineDash([7,6]);x.beginPath();x.arc(sample.x,sample.y,d,0,Math.PI*2);x.fill();x.stroke();x.setLineDash([])}
+function star(){if(!sample)return;let spikes=5,o=12,i=5,rot=Math.PI*1.5;x.beginPath();for(let n=0;n<spikes;n++){x.lineTo(sample.x+Math.cos(rot)*o,sample.y+Math.sin(rot)*o);rot+=Math.PI/spikes;x.lineTo(sample.x+Math.cos(rot)*i,sample.y+Math.sin(rot)*i);rot+=Math.PI/spikes}x.closePath();x.fillStyle='#111827';x.fill();x.fillStyle=NAVY;x.font='bold 13px Arial';x.fillText('new sample',sample.x+14,sample.y-12);if(phase>=4){let v=vote();x.fillStyle=v?PURPLE:BLUE;x.font='bold 16px Arial';x.fillText('prediction: '+(v?'Class B':'Class A'),sample.x+14,sample.y+16)}}
+function hint(){x.fillStyle=NAVY;x.font='bold 15px Arial';let t=phase===0?'Step through to see how KNN makes a prediction.':!sample?'Click in the chart to place a new sample.':phase===1?'New sample placed. Next: measure distance.':phase===2?'Distances measured. Next: select nearest K.':phase===3?'Nearest neighbours selected. Next: vote.':'Try changing K and watch the prediction.';x.fillText(t,150,28)}
+function draw(){x.clearRect(0,0,c.width,c.height);x.fillStyle='#fbfdff';x.fillRect(0,0,c.width,c.height);grid();axes();radius();lines();points();star();hint()}
+c.addEventListener('click',e=>{if(phase<1)return;let r=c.getBoundingClientRect(),px=(e.clientX-r.left)*c.width/r.width,py=(e.clientY-r.top)*c.height/r.height;if(px<60||px>730||py<55||py>455)return;sample={x:px,y:py};if(phase>=2)find();update();draw()});
+document.getElementById('k').addEventListener('change',()=>{if(sample&&phase>=2)find();readout();draw()});
+document.getElementById('reset').onclick=reset;document.getElementById('next').onclick=next;document.getElementById('reveal').onclick=()=>fbEl.style.display='block';
+reset();
+</script>
+</body></html>

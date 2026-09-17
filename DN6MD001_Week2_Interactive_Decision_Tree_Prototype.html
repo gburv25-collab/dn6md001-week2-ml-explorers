@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Decision Tree Interactive Explainer</title>
+<style>
+:root{
+  --navy:#10233f;--ink:#162033;--muted:#64748b;--bg:#f7fafc;--panel:#ffffff;
+  --line:#d9e2ec;--blue:#2f80ed;--purple:#7b61ff;--teal:#16a085;--green:#2e9d62;
+  --amber:#f2a93b;--red:#d84a4a;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:1180px;margin:auto;padding:24px}
+.hero{background:var(--navy);color:white;border-radius:22px;padding:28px 32px;margin-bottom:20px}
+.eyebrow{font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:#9fd2ff;font-weight:700;margin-bottom:8px}
+h1{margin:0 0 8px;font-size:38px}.hero p{margin:0;color:#dce8f5;font-size:18px;line-height:1.5}
+.grid{display:grid;grid-template-columns:2fr 1fr;gap:20px}
+.panel{background:white;border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 8px 30px rgba(16,35,63,.06)}
+canvas{width:100%;height:520px;display:block;border-radius:16px;background:#fbfdff;border:1px solid #e6edf5}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
+button,select{border:0;border-radius:10px;padding:11px 14px;font-size:15px}
+button{cursor:pointer;background:var(--navy);color:white;font-weight:700}.secondary{background:#eaf2fb;color:var(--navy)}.accent{background:var(--blue)}
+label{font-size:14px;font-weight:700;color:var(--muted)}select{background:#eef4f9;color:var(--ink);font-weight:700}
+.stage{border-left:5px solid var(--blue);background:#eef6ff;padding:14px 16px;border-radius:12px;margin-bottom:16px}
+.stage h2{margin:0 0 6px;font-size:21px}.stage p{margin:0;line-height:1.45}
+.steps{display:grid;gap:10px;margin:14px 0}.step{padding:12px 14px;border-radius:11px;border:1px solid var(--line);background:#fff;font-size:15px}.step.active{border-color:var(--blue);background:#eef6ff;font-weight:700}
+.think{margin-top:18px;background:#f3f0ff;border:1px solid #ded6ff;border-radius:14px;padding:16px}.think strong{color:#5b45c8}.question{margin-top:10px;font-size:16px;line-height:1.5}
+textarea{width:100%;min-height:92px;border:1px solid #ccd8e5;border-radius:10px;padding:10px;font-size:15px;margin-top:8px}
+.feedback{display:none;margin-top:10px;padding:11px;border-radius:10px;background:#edf9f2;border:1px solid #bfe8cd;line-height:1.45}
+.info{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.mini{background:#f7fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
+.mini h3{margin:0 0 6px;font-size:14px;text-transform:uppercase;color:var(--muted)}.big{font-size:28px;font-weight:700}
+.small,.helper,.footer{color:var(--muted);font-size:13px;line-height:1.4}
+.badge{display:inline-flex;align-items:center;gap:6px;background:#f2f6fa;border-radius:999px;padding:6px 10px;font-size:13px;color:var(--muted)}
+.legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.casebox{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.field{background:#f7fafc;border:1px solid var(--line);border-radius:12px;padding:10px}
+.field label{display:block;margin-bottom:6px}.field select{width:100%}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.casebox{grid-template-columns:1fr}h1{font-size:30px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="hero">
+  <div class="eyebrow">Week 2 • Machine Learning Approaches</div>
+  <h1>Decision Tree: Learn by Splitting the Data</h1>
+  <p>Step through how a decision tree creates increasingly useful splits, then watch a new case travel through the learned branches to a prediction.</p>
+</section>
+
+<div class="grid">
+<section class="panel">
+  <canvas id="c" width="760" height="520"></canvas>
+
+  <div class="controls">
+    <button class="secondary" id="reset">Reset</button>
+    <button class="accent" id="next">Next step</button>
+  </div>
+
+  <div class="legend">
+    <span class="badge">● Will fail</span>
+    <span class="badge">○ Will not fail</span>
+    <span class="badge">◆ New machine</span>
+  </div>
+
+  <div class="casebox">
+    <div class="field">
+      <label for="vib">Vibration</label>
+      <select id="vib">
+        <option value="low">Low</option>
+        <option value="high" selected>High</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="temp">Temperature</label>
+      <select id="temp">
+        <option value="normal">Normal</option>
+        <option value="high" selected>High</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="maint">Recent maintenance?</label>
+      <select id="maint">
+        <option value="yes">Yes</option>
+        <option value="no" selected>No</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="info">
+    <div class="mini">
+      <h3>Current path</h3>
+      <div class="big" id="pathBox">—</div>
+      <div class="small">The route the new machine takes through the tree.</div>
+    </div>
+    <div class="mini">
+      <h3>Prediction</h3>
+      <div class="big" id="predBox">—</div>
+      <div class="small">The class reached at the terminal leaf.</div>
+    </div>
+  </div>
+
+  <div class="helper">Once the tree is visible, change the machine values and watch the path update.</div>
+</section>
+
+<aside class="panel">
+  <div class="stage">
+    <h2 id="title"></h2>
+    <p id="desc"></p>
+  </div>
+
+  <div class="steps">
+    <div class="step" id="s0">1. Start with labelled data</div>
+    <div class="step" id="s1">2. Find a useful first split</div>
+    <div class="step" id="s2">3. Split again where needed</div>
+    <div class="step" id="s3">4. Route a new case</div>
+    <div class="step" id="s4">5. Reflect on depth and overfitting</div>
+  </div>
+
+  <div class="think">
+    <strong>Pause & think</strong>
+    <div class="question" id="q"></div>
+    <textarea placeholder="Type your answer here..."></textarea>
+    <button class="secondary" id="reveal" style="margin-top:8px">Reveal guidance</button>
+    <div class="feedback" id="fb"></div>
+  </div>
+
+  <div class="footer">DN6MD001 • Artificial Intelligence and Machine Learning</div>
+</aside>
+</div>
+</div>
+
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d');
+const NAVY='#10233f',BLUE='#2f80ed',PURPLE='#7b61ff',GREEN='#2e9d62',RED='#d84a4a',GREY='#94a3b8',LIGHT='#e8eef5';
+let phase=0;
+
+function values(){
+  return {
+    vib:document.getElementById('vib').value,
+    temp:document.getElementById('temp').value,
+    maint:document.getElementById('maint').value
+  };
+}
+
+function predict(v){
+  if(v.vib==='low') return {pred:'No fail',path:'Low vibration'};
+  if(v.temp==='normal') return {pred:'No fail',path:'High vibration → Normal temperature'};
+  if(v.maint==='yes') return {pred:'No fail',path:'High vibration → High temperature → Recent maintenance'};
+  return {pred:'Fail',path:'High vibration → High temperature → No recent maintenance'};
+}
+
+function reset(){phase=0;update();draw()}
+
+function next(){if(phase<4)phase++;update();draw()}
+
+document.getElementById('reset').onclick=reset;
+document.getElementById('next').onclick=next;
+document.getElementById('reveal').onclick=()=>fb.style.display='block';
+['vib','temp','maint'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{updateReadout();draw()}));
+
+function update(){
+  const T=[
+    '1. Start with labelled examples',
+    '2. Find a split that separates the classes',
+    '3. Split again where the data are still mixed',
+    '4. Route a new observation through the tree',
+    '5. More splits are not always better'
+  ];
+  const D=[
+    'A decision tree is supervised learning. The training observations have known target labels, such as failure / no failure.',
+    'The algorithm tests candidate feature splits and keeps one that creates purer child groups than the parent group.',
+    'If a branch still contains mixed outcomes, the tree can split that subset again using another feature.',
+    'A new case follows the learned rules from the root node to a terminal leaf, where a prediction is produced.',
+    'A very deep tree can memorise training data rather than generalise well. Tree depth is therefore an important model-design choice.'
+  ];
+  const Q=[
+    'Why does a decision tree need known target labels during training?',
+    'What would make one split more useful than another?',
+    'Why might a branch need another split after the first one?',
+    'What is the difference between a learned split and a manually written business rule?',
+    'Why can repeatedly splitting until every training case is perfectly separated be a problem?'
+  ];
+  const F=[
+    'Because the model needs known outcomes to judge whether a candidate split improves separation between the target classes.',
+    'A useful split creates child groups that are more homogeneous in their target outcomes than the parent group.',
+    'Because the first split may not separate the classes sufficiently. A second feature can sometimes improve the separation within that branch.',
+    'The split threshold is learned from the training data to improve prediction, whereas a business rule is normally specified explicitly by people or policy.',
+    'The tree may overfit: it can reproduce quirks and noise in the training data but perform poorly on unseen observations.'
+  ];
+  title.textContent=T[phase];desc.textContent=D[phase];q.textContent=Q[phase];fb.textContent=F[phase];fb.style.display='none';
+  for(let i=0;i<5;i++)document.getElementById('s'+i).classList.toggle('active',i===phase);
+  updateReadout();
+}
+
+function updateReadout(){
+  if(phase<3){pathBox.textContent='—';predBox.textContent='—';predBox.style.color=NAVY;return}
+  const r=predict(values());
+  pathBox.textContent=r.path;
+  predBox.textContent=r.pred;
+  predBox.style.color=r.pred==='Fail'?RED:GREEN;
+}
+
+function line(x1,y1,x2,y2,color=NAVY,width=2){
+  ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+}
+function node(x,y,w,h,text,fill='#eef6ff',stroke='#b9cce0',txt=NAVY){
+  ctx.fillStyle=fill;ctx.strokeStyle=stroke;ctx.lineWidth=2;
+  ctx.beginPath();roundRect(x,y,w,h,12);ctx.fill();ctx.stroke();
+  ctx.fillStyle=txt;ctx.font='bold 16px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
+  const lines=text.split('\n');lines.forEach((t,i)=>ctx.fillText(t,x+w/2,y+h/2+(i-(lines.length-1)/2)*18));
+}
+function roundRect(x,y,w,h,r){
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
+}
+function pill(x,y,w,h,text,fill,txt='white'){
+  ctx.fillStyle=fill;ctx.beginPath();roundRect(x,y,w,h,h/2);ctx.fill();
+  ctx.fillStyle=txt;ctx.font='bold 14px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,x+w/2,y+h/2);
+}
+function label(x,y,text,color=NAVY){
+  ctx.fillStyle=color;ctx.font='13px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,x,y);
+}
+function drawTrainingData(){
+  const groups=[
+    {x:90,y:95,fail:2,no:6,name:'Low vibration'},
+    {x:290,y:95,fail:5,no:5,name:'High vibration'},
+    {x:490,y:95,fail:7,no:3,name:'High temp'},
+    {x:620,y:95,fail:1,no:5,name:'Maintained'}
+  ];
+  if(phase===0){
+    ctx.fillStyle=NAVY;ctx.font='bold 18px Arial';ctx.textAlign='left';ctx.fillText('Training observations',75,55);
+    let startX=115,startY=130;
+    const vals=[0,0,1,0,1,1,0,0,1,0,1,1,1,0,0,1,0,1,0,0];
+    vals.forEach((v,i)=>{
+      const x=startX+(i%10)*55,y=startY+Math.floor(i/10)*65;
+      ctx.fillStyle=v?RED:GREEN;ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='white';ctx.lineWidth=2;ctx.stroke();
+    });
+    ctx.fillStyle='#52606d';ctx.font='14px Arial';ctx.fillText('Each point has a known target: fail / no fail',75,285);
+  }
+}
+function drawTree(){
+  if(phase<1)return;
+
+  // root
+  node(285,60,190,60,'Vibration high?','#eef6ff','#aac8ea');
+  if(phase>=1){
+    line(380,120,190,205);line(380,120,570,205);
+    label(255,165,'No');label(505,165,'Yes');
+    node(105,205,170,60,'Predict:\nNo fail','#eef9f1','#b7dfc5',GREEN);
+  }
+  if(phase>=2){
+    node(485,205,170,60,'Temperature high?','#f5f0ff','#c9bdf7');
+    line(570,265,465,350);line(570,265,665,350);
+    label(505,310,'No');label(625,310,'Yes');
+    node(380,350,170,60,'Predict:\nNo fail','#eef9f1','#b7dfc5',GREEN);
+    node(580,350,170,60,'Recent maintenance?','#fff8e9','#efd4a0');
+    line(665,410,610,475);line(665,410,715,475);
+    label(625,445,'Yes');label(698,445,'No');
+    pill(540,470,140,38,'No fail',GREEN);
+    pill(680,470,70,38,'Fail',RED);
+  }
+
+  if(phase>=3){
+    const v=values(),r=predict(v);
+    ctx.save();ctx.strokeStyle='#111827';ctx.lineWidth=5;ctx.setLineDash([8,5]);
+    if(v.vib==='low'){
+      line(380,120,190,205,'#111827',5);
+    }else{
+      line(380,120,570,205,'#111827',5);
+      if(v.temp==='normal'){
+        line(570,265,465,350,'#111827',5);
+      }else{
+        line(570,265,665,350,'#111827',5);
+        if(v.maint==='yes') line(665,410,610,475,'#111827',5);
+        else line(665,410,715,475,'#111827',5);
+      }
+    }
+    ctx.restore();
+    ctx.fillStyle='#111827';ctx.font='bold 15px Arial';ctx.textAlign='left';ctx.fillText('New machine path shown in black',75,28);
+  }
+}
+function drawOverfit(){
+  if(phase!==4)return;
+  ctx.fillStyle='rgba(255,255,255,.94)';ctx.fillRect(40,40,680,440);
+  ctx.fillStyle=NAVY;ctx.font='bold 24px Arial';ctx.textAlign='left';ctx.fillText('What if we keep splitting?',75,95);
+  ctx.fillStyle='#52606d';ctx.font='16px Arial';
+  ctx.fillText('Shallow tree',105,145);ctx.fillText('Very deep tree',475,145);
+
+  // shallow
+  node(80,175,180,50,'Vibration high?');
+  line(170,225,110,280);line(170,225,230,280);
+  pill(60,280,100,34,'No fail',GREEN);pill(180,280,100,34,'Mixed', '#7d8da5');
+
+  // deep
+  node(450,175,180,50,'Vibration high?');
+  line(540,225,480,270);line(540,225,600,270);
+  node(420,270,120,45,'Temp?','#f5f0ff','#c9bdf7');
+  node(570,270,120,45,'Maint?','#fff8e9','#efd4a0');
+  line(480,315,450,360);line(480,315,510,360);line(630,315,600,360);line(630,315,660,360);
+  pill(405,360,90,32,'No fail',GREEN);pill(500,360,90,32,'Fail',RED);pill(590,360,90,32,'No fail',GREEN);pill(670,360,65,32,'Fail',RED);
+
+  ctx.fillStyle=RED;ctx.font='bold 18px Arial';ctx.fillText('Risk: memorising noise',460,435);
+  ctx.fillStyle=NAVY;ctx.font='16px Arial';ctx.fillText('More complexity can fit training data better',75,470);
+  ctx.fillText('without necessarily generalising better.',75,495);
+}
+function draw(){
+  ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle='#fbfdff';ctx.fillRect(0,0,c.width,c.height);
+  if(phase===0)drawTrainingData();else drawTree();
+  if(phase===4)drawOverfit();
+}
+reset();
+</script>
+</body>
+</html>

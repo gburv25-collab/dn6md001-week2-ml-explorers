@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logistic Regression Core Explorer</title>
+<style>
+  :root{
+    --navy:#10233f;--ink:#162033;--muted:#64748b;--bg:#f7fafc;--panel:#fff;
+    --line:#d9e2ec;--blue:#2f80ed;--purple:#7b61ff;--red:#d64545;--soft:#eef6ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink)}
+  .wrap{max-width:1120px;margin:auto;padding:24px}
+  .hero{background:var(--navy);color:#fff;border-radius:20px;padding:26px 30px;margin-bottom:20px}
+  .eyebrow{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#9fd2ff;font-weight:700;margin-bottom:8px}
+  h1{margin:0 0 8px;font-size:36px}
+  .hero p{margin:0;color:#dce8f5;font-size:17px;line-height:1.5}
+  .grid{display:grid;grid-template-columns:2fr 1fr;gap:20px}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px}
+  canvas{width:100%;height:500px;display:block;border-radius:14px;background:#fbfdff;border:1px solid #e6edf5;cursor:crosshair}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
+  button,input[type=range]{border:0;border-radius:10px;padding:11px 14px;font-size:15px}
+  button{cursor:pointer;background:var(--navy);color:#fff;font-weight:700}
+  button.secondary{background:#eaf2fb;color:var(--navy)}
+  button:disabled,input:disabled{opacity:.45;cursor:not-allowed}
+  .stage{border-left:5px solid var(--blue);background:var(--soft);padding:14px 16px;border-radius:12px;margin-bottom:16px}
+  .stage h2{margin:0 0 6px;font-size:21px}.stage p{margin:0;line-height:1.45}
+  .steps{display:grid;gap:10px}
+  .step{padding:12px 14px;border:1px solid var(--line);border-radius:11px;background:#fff}
+  .step.active{border-color:var(--blue);background:#eef6ff;font-weight:700}
+  .output{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+  .card{background:#f7fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
+  .card h3{margin:0 0 6px;font-size:13px;text-transform:uppercase;color:var(--muted)}
+  .big{font-size:28px;font-weight:700}.small{font-size:13px;color:var(--muted);line-height:1.4}
+  .threshold{margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff}
+  .threshold-head{display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .badge{background:#f2f6fa;border-radius:999px;padding:5px 9px;font-size:13px;color:var(--muted)}
+  .helper,.footer{font-size:13px;color:var(--muted);line-height:1.45}
+  .helper{margin-top:8px}
+  .think{margin-top:18px;background:#f3f0ff;border:1px solid #ded6ff;border-radius:14px;padding:16px}
+  .think strong{color:#5b45c8}.question{margin-top:8px;line-height:1.5}
+  textarea{width:100%;min-height:82px;border:1px solid #ccd8e5;border-radius:10px;padding:10px;font-size:15px;margin-top:8px}
+  .feedback{display:none;margin-top:10px;padding:11px;border-radius:10px;background:#edf9f2;border:1px solid #bfe8cd;line-height:1.45}
+  @media(max-width:850px){.grid{grid-template-columns:1fr}h1{font-size:30px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <div class="eyebrow">Week 2 • Key Focus Technique</div>
+    <h1>Logistic Regression: From Probability to Class</h1>
+    <p>Focus on four ideas: labelled data, a new sample, predicted probability, and the threshold used to turn that probability into a class.</p>
+  </section>
+
+  <div class="grid">
+    <section class="panel">
+      <canvas id="chart" width="740" height="500" aria-label="Logistic regression teaching visual"></canvas>
+
+      <div class="controls">
+        <button type="button" class="secondary" id="resetBtn">Reset</button>
+        <button type="button" id="nextBtn">Next step</button>
+      </div>
+
+      <div class="output">
+        <div class="card">
+          <h3>Predicted probability</h3>
+          <div class="big" id="probBox">Not shown yet</div>
+          <div class="small">Probability that the new sample belongs to the purple class.</div>
+        </div>
+        <div class="card">
+          <h3>Predicted class</h3>
+          <div class="big" id="classBox">Not shown yet</div>
+          <div class="small" id="reasonBox">The class is revealed when a threshold is applied.</div>
+        </div>
+      </div>
+
+      <div class="threshold">
+        <div class="threshold-head">
+          <label for="threshold"><strong>Decision threshold</strong></label>
+          <span class="badge" id="thresholdValue">0.50</span>
+        </div>
+        <input id="threshold" type="range" min="0.10" max="0.90" step="0.05" value="0.50" style="width:100%;margin-top:8px" disabled>
+        <div class="helper" id="sliderHelp">The slider becomes active at Step 4.</div>
+      </div>
+
+      <div class="footer" style="margin-top:12px">
+        From Step 2 onward, click inside the chart to move the new sample.
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="stage">
+        <h2 id="stageTitle"></h2>
+        <p id="stageText"></p>
+      </div>
+
+      <div class="steps">
+        <div class="step" id="s0">1. Labelled data</div>
+        <div class="step" id="s1">2. New sample</div>
+        <div class="step" id="s2">3. Predicted probability</div>
+        <div class="step" id="s3">4. Threshold → class</div>
+      </div>
+
+      <div class="think">
+        <strong>Pause & think</strong>
+        <div class="question" id="question"></div>
+        <textarea id="answer" placeholder="Type your answer here..."></textarea>
+        <button type="button" class="secondary" id="revealBtn" style="margin-top:8px">Reveal guidance</button>
+        <div class="feedback" id="feedback"></div>
+      </div>
+
+      <div class="footer" style="margin-top:18px">
+        DN6MD001 • Artificial Intelligence and Machine Learning
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('chart');
+const ctx = canvas.getContext('2d');
+
+const BLUE = '#2f80ed';
+const PURPLE = '#7b61ff';
+const NAVY = '#10233f';
+const RED = '#d64545';
+const MUTED = '#64748b';
+const GRID = '#e5ebf2';
+const PLOT = {left:70,right:700,top:70,bottom:410};
+
+let stage = 0;
+let sample = {x:430,y:290};
+
+const points = [
+  {x:120,y:350,c:0},{x:155,y:320,c:0},{x:180,y:370,c:0},{x:215,y:330,c:0},
+  {x:245,y:365,c:0},{x:270,y:310,c:0},{x:300,y:345,c:0},{x:330,y:295,c:0},
+  {x:360,y:325,c:0},{x:390,y:280,c:0},
+  {x:420,y:275,c:1},{x:455,y:245,c:1},{x:485,y:265,c:1},{x:515,y:220,c:1},
+  {x:545,y:245,c:1},{x:575,y:200,c:1},{x:605,y:225,c:1},{x:635,y:175,c:1},
+  {x:665,y:200,c:1}
+];
+
+function sigmoid(z){ return 1/(1+Math.exp(-z)); }
+
+function probability(x,y){
+  const nx=(x-385)/155;
+  const ny=(270-y)/115;
+  return sigmoid(2.45*nx + 2.05*ny - 0.05);
+}
+
+function logit(p){
+  const q=Math.max(0.001,Math.min(0.999,p));
+  return Math.log(q/(1-q));
+}
+
+function boundaryY(x,t){
+  const z=logit(t);
+  return 270 - 115*(z + 0.05 - 2.45*(x-385)/155)/2.05;
+}
+
+function drawGrid(){
+  ctx.strokeStyle=GRID; ctx.lineWidth=1;
+  for(let x=140;x<=700;x+=70){
+    ctx.beginPath();ctx.moveTo(x,PLOT.top);ctx.lineTo(x,PLOT.bottom);ctx.stroke();
+  }
+  for(let y=105;y<=390;y+=55){
+    ctx.beginPath();ctx.moveTo(PLOT.left,y);ctx.lineTo(PLOT.right,y);ctx.stroke();
+  }
+}
+
+function drawAxes(){
+  ctx.strokeStyle='#94a3b8'; ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(PLOT.left,PLOT.bottom);ctx.lineTo(PLOT.right,PLOT.bottom);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(PLOT.left,PLOT.bottom);ctx.lineTo(PLOT.left,PLOT.top);ctx.stroke();
+
+  ctx.fillStyle=MUTED;ctx.font='14px Arial';ctx.textAlign='center';
+  ctx.fillText('Feature 1',(PLOT.left+PLOT.right)/2,447);
+  ctx.save();ctx.translate(24,245);ctx.rotate(-Math.PI/2);ctx.fillText('Feature 2',0,0);ctx.restore();
+}
+
+function drawPoints(){
+  points.forEach(p=>{
+    ctx.fillStyle=p.c===0?BLUE:PURPLE;
+    ctx.beginPath();ctx.arc(p.x,p.y,7.5,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+  });
+
+  ctx.fillStyle=NAVY;ctx.font='bold 13px Arial';ctx.textAlign='left';
+  ctx.fillText('Blue class',85,38);
+  ctx.fillStyle=BLUE;ctx.beginPath();ctx.arc(72,34,6,0,Math.PI*2);ctx.fill();
+
+  ctx.fillStyle=NAVY;ctx.fillText('Purple class',215,38);
+  ctx.fillStyle=PURPLE;ctx.beginPath();ctx.arc(202,34,6,0,Math.PI*2);ctx.fill();
+}
+
+function drawSample(){
+  if(stage<1) return;
+
+  ctx.save();
+  ctx.translate(sample.x,sample.y);
+  ctx.rotate(Math.PI/4);
+  ctx.fillStyle='#111827';
+  ctx.fillRect(-8,-8,16,16);
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.strokeRect(-8,-8,16,16);
+  ctx.restore();
+
+  ctx.fillStyle=NAVY;ctx.font='bold 13px Arial';ctx.textAlign='left';
+  ctx.fillText('New sample',Math.min(sample.x+14,600),Math.max(sample.y-12,85));
+}
+
+
+function drawClassRegions(){
+  if(stage<3) return;
+
+  const t=parseFloat(document.getElementById('threshold').value);
+
+  ctx.save();
+  ctx.globalAlpha=0.09;
+
+  for(let x=PLOT.left; x<PLOT.right; x+=4){
+    const y=Math.max(PLOT.top, Math.min(PLOT.bottom, boundaryY(x,t)));
+
+    // Purple region: probability >= threshold (above the boundary in this visual).
+    ctx.fillStyle=PURPLE;
+    ctx.fillRect(x, PLOT.top, 4.5, Math.max(0, y-PLOT.top));
+
+    // Blue region: probability < threshold (below the boundary).
+    ctx.fillStyle=BLUE;
+    ctx.fillRect(x, y, 4.5, Math.max(0, PLOT.bottom-y));
+  }
+
+  ctx.restore();
+}
+
+function drawBoundary(){
+  if(stage<3) return;
+
+  const t=parseFloat(document.getElementById('threshold').value);
+
+  ctx.strokeStyle=RED;ctx.lineWidth=3;ctx.setLineDash([8,6]);
+  ctx.beginPath();
+  let started=false;
+  for(let x=PLOT.left;x<=PLOT.right;x+=4){
+    const y=boundaryY(x,t);
+    if(y>=PLOT.top && y<=PLOT.bottom){
+      if(!started){ctx.moveTo(x,y);started=true;} else ctx.lineTo(x,y);
+    }
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle=RED;ctx.font='bold 13px Arial';ctx.textAlign='right';
+  ctx.fillText(`Threshold ${t.toFixed(2)}`,690,58);
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#fbfdff';ctx.fillRect(0,0,canvas.width,canvas.height);
+  drawClassRegions();
+  drawGrid();
+  drawAxes();
+  drawPoints();
+  drawBoundary();
+  drawSample();
+}
+
+function updateOutputs(){
+  const p=probability(sample.x,sample.y);
+  const t=parseFloat(document.getElementById('threshold').value);
+  const c=p>=t?1:0;
+
+  if(stage<2){
+    document.getElementById('probBox').textContent='Not shown yet';
+    document.getElementById('probBox').style.color=NAVY;
+  } else {
+    document.getElementById('probBox').textContent=p.toFixed(3);
+    document.getElementById('probBox').style.color=PURPLE;
+  }
+
+  if(stage<3){
+    document.getElementById('classBox').textContent='Not shown yet';
+    document.getElementById('classBox').style.color=NAVY;
+    document.getElementById('reasonBox').textContent='The class is revealed when a threshold is applied.';
+  } else {
+    document.getElementById('classBox').textContent=c===1?'Purple':'Blue';
+    document.getElementById('classBox').style.color=c===1?PURPLE:BLUE;
+    document.getElementById('reasonBox').textContent=
+      `${p.toFixed(3)} ${c===1?'≥':'<'} ${t.toFixed(2)} threshold`;
+  }
+}
+
+function updateText(){
+  const titles=[
+    '1. Start with labelled examples',
+    '2. Place a new sample',
+    '3. Estimate its probability',
+    '4. Apply a threshold to produce a class'
+  ];
+  const descriptions=[
+    'Logistic regression is supervised learning because the training observations already have known class labels.',
+    'A new case arrives without a known outcome. Click in the chart to move the sample to a different part of the feature space.',
+    'The model estimates the probability that the new sample belongs to the purple class.',
+    'A decision threshold converts that probability into a class. The shaded regions show which side of the current boundary is classified Blue or Purple. Move the slider and watch the boundary and shading move while the probability stays fixed.'
+  ];
+  const questions=[
+    'Why is this supervised learning?',
+    'What information about the new case must be available before the model can make a prediction?',
+    'What does a predicted probability of 0.70 mean?',
+    'Why can the predicted class change even when the predicted probability does not?'
+  ];
+  const guidance=[
+    'The training data already contain known outcomes, so the model can learn the relationship between features and class labels.',
+    'The new case needs values for the same input features used by the model during training.',
+    'The model estimates a 0.70 probability that the sample belongs to the purple class, based on the learned relationship.',
+    'The threshold is a separate decision rule applied after the probability is estimated. Changing the threshold can therefore change the class without changing the model probability.'
+  ];
+
+  document.getElementById('stageTitle').textContent=titles[stage];
+  document.getElementById('stageText').textContent=descriptions[stage];
+  document.getElementById('question').textContent=questions[stage];
+  document.getElementById('feedback').textContent=guidance[stage];
+  document.getElementById('feedback').style.display='none';
+  document.getElementById('answer').value='';
+
+  for(let i=0;i<4;i++){
+    document.getElementById('s'+i).classList.toggle('active',i===stage);
+  }
+
+  const slider=document.getElementById('threshold');
+  slider.disabled=stage<3;
+  document.getElementById('sliderHelp').textContent=
+    stage<3 ? 'The slider becomes active at Step 4.' :
+    'Move the threshold. The probability stays the same; only the decision rule changes.';
+
+  updateOutputs();
+  draw();
+}
+
+document.getElementById('nextBtn').addEventListener('click',()=>{
+  if(stage<3) stage+=1;
+  updateText();
+});
+
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  stage=0;
+  sample={x:430,y:290};
+  document.getElementById('threshold').value='0.50';
+  document.getElementById('thresholdValue').textContent='0.50';
+  updateText();
+});
+
+document.getElementById('threshold').addEventListener('input',()=>{
+  document.getElementById('thresholdValue').textContent=
+    parseFloat(document.getElementById('threshold').value).toFixed(2);
+  updateOutputs();
+  draw();
+});
+
+canvas.addEventListener('click',e=>{
+  if(stage<1) return;
+  const r=canvas.getBoundingClientRect();
+  const x=(e.clientX-r.left)*(canvas.width/r.width);
+  const y=(e.clientY-r.top)*(canvas.height/r.height);
+  if(x<PLOT.left||x>PLOT.right||y<PLOT.top||y>PLOT.bottom) return;
+  sample={x,y};
+  updateOutputs();
+  draw();
+});
+
+document.getElementById('revealBtn').addEventListener('click',()=>{
+  document.getElementById('feedback').style.display='block';
+});
+
+updateText();
+</script>
+</body>
+</html>

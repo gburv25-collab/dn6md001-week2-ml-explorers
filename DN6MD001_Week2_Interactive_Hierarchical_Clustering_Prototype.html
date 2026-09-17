@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hierarchical Clustering Interactive</title><style>
+:root{
+  --navy:#10233f;--ink:#162033;--muted:#64748b;--bg:#f7fafc;--panel:#fff;
+  --line:#d9e2ec;--blue:#2f80ed;--purple:#7b61ff;--teal:#16a085;--green:#2e9d62;
+  --amber:#f2a93b;--red:#d84a4a;--soft:#eef6ff;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:1180px;margin:auto;padding:24px}
+.hero{background:var(--navy);color:white;border-radius:22px;padding:28px 32px;margin-bottom:20px}
+.eyebrow{font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:#9fd2ff;font-weight:700;margin-bottom:8px}
+h1{margin:0 0 8px;font-size:36px}
+.hero p{margin:0;color:#dce8f5;font-size:18px;line-height:1.5}
+.grid{display:grid;grid-template-columns:2fr 1fr;gap:20px}
+.panel{background:white;border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 8px 30px rgba(16,35,63,.06)}
+canvas{width:100%;height:520px;display:block;border-radius:16px;background:#fbfdff;border:1px solid #e6edf5}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
+button,select,input[type=range]{border:0;border-radius:10px;padding:11px 14px;font-size:15px}
+button{cursor:pointer;background:var(--navy);color:white;font-weight:700}
+.secondary{background:#eaf2fb;color:var(--navy)}
+.accent{background:var(--blue)}
+label{font-size:14px;font-weight:700;color:var(--muted)}
+select{background:#eef4f9;color:var(--ink);font-weight:700}
+.stage{border-left:5px solid var(--blue);background:#eef6ff;padding:14px 16px;border-radius:12px;margin-bottom:16px}
+.stage h2{margin:0 0 6px;font-size:21px}.stage p{margin:0;line-height:1.45}
+.steps{display:grid;gap:10px;margin:14px 0}
+.step{padding:12px 14px;border-radius:11px;border:1px solid var(--line);background:#fff;font-size:15px}
+.step.active{border-color:var(--blue);background:#eef6ff;font-weight:700}
+.think{margin-top:18px;background:#f3f0ff;border:1px solid #ded6ff;border-radius:14px;padding:16px}
+.think strong{color:#5b45c8}
+.question{margin-top:10px;font-size:16px;line-height:1.5}
+textarea{width:100%;min-height:92px;border:1px solid #ccd8e5;border-radius:10px;padding:10px;font-size:15px;margin-top:8px}
+.feedback{display:none;margin-top:10px;padding:11px;border-radius:10px;background:#edf9f2;border:1px solid #bfe8cd;line-height:1.45}
+.info{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mini{background:#f7fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
+.mini h3{margin:0 0 6px;font-size:14px;text-transform:uppercase;color:var(--muted)}
+.big{font-size:28px;font-weight:700}
+.small,.helper,.footer{color:var(--muted);font-size:13px;line-height:1.4}
+.tag{display:inline-block;background:#f2f6fa;border-radius:999px;padding:6px 10px;font-size:13px;color:var(--muted)}
+@media(max-width:900px){.grid{grid-template-columns:1fr}h1{font-size:30px}}
+</style></head>
+<body><div class="wrap">
+<section class="hero"><div class="eyebrow">Week 2 • Unsupervised Learning</div><h1>Hierarchical Clustering: Build a Dendrogram</h1><p>See how nearby observations are merged step by step to create a hierarchy of clusters, then choose where to cut the dendrogram.</p></section>
+<div class="grid">
+<section class="panel">
+<canvas id="c" width="760" height="520"></canvas>
+<div class="controls">
+<label for="cut">Cut level</label>
+<select id="cut"><option value="1">Low cut</option><option value="2" selected>Middle cut</option><option value="3">High cut</option></select>
+<button class="secondary" id="reset">Reset</button><button class="accent" id="next">Next step</button>
+</div>
+<div class="info"><div class="mini"><h3>Clusters after cut</h3><div class="big" id="clusters">—</div><div class="small">The number of groups depends on where the dendrogram is cut.</div></div>
+<div class="mini"><h3>Current idea</h3><div class="big" id="idea">Distance</div><div class="small">Agglomerative clustering repeatedly merges the closest groups.</div></div></div>
+</section>
+<aside class="panel">
+<div class="stage"><h2 id="title"></h2><p id="desc"></p></div>
+<div class="steps"><div class="step" id="s0">1. Start with separate observations</div><div class="step" id="s1">2. Merge the closest pair</div><div class="step" id="s2">3. Keep merging step by step</div><div class="step" id="s3">4. Read the dendrogram</div><div class="step" id="s4">5. Cut the tree to form clusters</div></div>
+<div class="think"><strong>Pause & think</strong><div class="question" id="q"></div><textarea placeholder="Type your answer..."></textarea><button class="secondary" id="reveal" style="margin-top:8px">Reveal guidance</button><div class="feedback" id="fb"></div></div>
+<div class="footer">DN6MD001 • Artificial Intelligence and Machine Learning</div>
+</aside></div></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'); let phase=0;
+const pts=[{x:110,y:360,l:'A'},{x:170,y:340,l:'B'},{x:250,y:390,l:'C'},{x:320,y:370,l:'D'},{x:520,y:180,l:'E'},{x:590,y:210,l:'F'},{x:640,y:160,l:'G'}];
+function drawPts(){pts.forEach(p=>{x.fillStyle='#2f80ed';x.beginPath();x.arc(p.x,p.y,10,0,Math.PI*2);x.fill();x.fillStyle='white';x.font='bold 13px Arial';x.textAlign='center';x.fillText(p.l,p.x,p.y+4);});}
+function line(a,b,c,w=3,dash=false){x.save();x.strokeStyle=c;x.lineWidth=w;if(dash)x.setLineDash([8,6]);x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x,b.y);x.stroke();x.restore();}
+function dendro(){
+  x.strokeStyle='#334155';x.lineWidth=3;
+  const baseY=470,leftX=90;
+  const leaves=[110,170,250,320,520,590,640];
+  const levels={ab:420,cd:395,fg:250,efg:215,left:330,all:120};
+  // verticals
+  [[110,levels.ab],[170,levels.ab],[250,levels.cd],[320,levels.cd],[590,levels.fg],[640,levels.fg]].forEach(v=>{x.beginPath();x.moveTo(v[0],baseY);x.lineTo(v[0],v[1]);x.stroke()});
+  x.beginPath();x.moveTo(520,baseY);x.lineTo(520,levels.efg);x.stroke();
+  x.beginPath();x.moveTo(615,levels.fg);x.lineTo(615,levels.efg);x.stroke();
+  x.beginPath();x.moveTo(140,levels.ab);x.lineTo(140,levels.left);x.stroke();
+  x.beginPath();x.moveTo(285,levels.cd);x.lineTo(285,levels.left);x.stroke();
+  x.beginPath();x.moveTo(212,levels.left);x.lineTo(212,levels.all);x.stroke();
+  x.beginPath();x.moveTo(567.5,levels.efg);x.lineTo(567.5,levels.all);x.stroke();
+  // horizontals
+  [[110,170,levels.ab],[250,320,levels.cd],[590,640,levels.fg],[520,615,levels.efg],[140,285,levels.left],[212,567.5,levels.all]].forEach(h=>{x.beginPath();x.moveTo(h[0],h[2]);x.lineTo(h[1],h[2]);x.stroke()});
+  x.fillStyle='#64748b';x.font='14px Arial';x.textAlign='left';x.fillText('Dendrogram',60,95);
+}
+function cutLine(){
+  if(phase<4) return;
+  const level=+cut.value;
+  let y= level===1 ? 410 : level===2 ? 230 : 170;
+  let count= level===1 ? 6 : level===2 ? 3 : 2;
+  clusters.textContent=String(count);
+  x.strokeStyle='#d84a4a'; x.lineWidth=3; x.setLineDash([10,8]);
+  x.beginPath(); x.moveTo(80,y); x.lineTo(690,y); x.stroke(); x.setLineDash([]);
+}
+function merges(){
+  if(phase>=1){ line(pts[0],pts[1],'#16a085'); x.fillStyle='#16a085'; x.fillText('closest pair',125,320);}
+  if(phase>=2){ line(pts[2],pts[3],'#7b61ff'); line(pts[5],pts[6],'#f2a93b'); line(pts[4],{x:615,y:185},'#2e9d62'); }
+}
+function draw(){
+  x.clearRect(0,0,760,520); x.fillStyle='#fbfdff'; x.fillRect(0,0,760,520);
+  if(phase<=2){
+    x.fillStyle='#10233f'; x.font='bold 18px Arial'; x.textAlign='left';
+    x.fillText('Data space',55,35); drawPts(); merges();
+    if(phase>=2){x.fillStyle='#64748b';x.font='14px Arial';x.fillText('Clusters are built by repeated merging.',55,65);}
+  } else {
+    dendro(); cutLine();
+  }
+}
+function update(){
+  const T=['1. Every observation begins alone','2. Merge the closest observations','3. Continue building larger groups','4. The dendrogram stores the merge history','5. Cut the dendrogram to choose final clusters'];
+  const D=['Agglomerative hierarchical clustering starts with each observation as its own cluster.','The closest pair is merged first.','At each stage the algorithm merges the next closest clusters according to a linkage rule.','The dendrogram shows the order and distance of merges.','A horizontal cut through the dendrogram creates the final grouping. Different cut heights give different numbers of clusters.'];
+  const Q=['Why does hierarchical clustering not require the final number of clusters at the very beginning?','What does “closest” mean in this context?','Why might different linkage rules lead to different groupings?','What does the height of a merge in the dendrogram represent?','Why might a low cut and a high cut lead to very different interpretations of the same data?'];
+  const F=['The full merge hierarchy is built first, and the analyst can then choose where to cut the tree.','It refers to similarity or distance according to the chosen metric and linkage method.','Because they define the distance between clusters differently, which changes which merges happen next.','It represents the dissimilarity or linkage distance at which groups were merged.','A low cut preserves many smaller groups; a high cut combines them into fewer broader groups.'];
+  title.textContent=T[phase]; desc.textContent=D[phase]; q.textContent=Q[phase]; fb.textContent=F[phase]; fb.style.display='none';
+  for(let i=0;i<5;i++) document.getElementById('s'+i).classList.toggle('active', i===phase);
+  if(phase<4) clusters.textContent='—';
+  draw();
+}
+reset.onclick=()=>{phase=0;cut.value='2';update();};
+next.onclick=()=>{if(phase<4) phase++; update();};
+reveal.onclick=()=>fb.style.display='block';
+cut.onchange=update;
+update();
+</script></body></html>
